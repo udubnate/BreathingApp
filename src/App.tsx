@@ -16,6 +16,8 @@ interface BreathingSettings {
   holdTime: number;
   exhaleTime: number;
   pauseTime: number;
+  background: 'forest' | 'ocean' | 'mountain' | 'space' | 'default';
+  sessionDuration: number; // in minutes
 }
 
 function App() {
@@ -27,11 +29,14 @@ function App() {
     inhaleTime: 4,
     holdTime: 4,
     exhaleTime: 4,
-    pauseTime: 1
+    pauseTime: 1,
+    background: 'default',
+    sessionDuration: 5 // default 5 minutes
   });
   const [showSettings, setShowSettings] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [sessionStartTime, setSessionStartTime] = useState<number | null>(null);
+  const [remainingTime, setRemainingTime] = useState<number | null>(null);
 
   // Enhanced particle animation effect
   useEffect(() => {
@@ -137,6 +142,21 @@ function App() {
     };
   }, [isActive, sessionStartTime]);
 
+  // Add this effect for session timer
+  useEffect(() => {
+    if (isActive && settings.sessionDuration > 0) {
+      const totalSeconds = settings.sessionDuration * 60;
+      setRemainingTime(totalSeconds - elapsedTime);
+      
+      if (elapsedTime >= totalSeconds) {
+        setIsActive(false);
+        setSessionStartTime(null);
+        setElapsedTime(0);
+        setRemainingTime(null);
+      }
+    }
+  }, [isActive, elapsedTime, settings.sessionDuration]);
+
   const toggleBreathing = () => {
     setIsActive(!isActive);
     if (!isActive) {
@@ -144,6 +164,7 @@ function App() {
       setCount(settings.inhaleTime);
       setSessionStartTime(Date.now());
       setElapsedTime(0);
+      setRemainingTime(settings.sessionDuration * 60);
     }
   };
 
@@ -151,6 +172,13 @@ function App() {
     setSettings(prev => ({
       ...prev,
       [setting]: Math.max(1, Math.min(10, value))
+    }));
+  };
+
+  const handleBackgroundChange = (value: BreathingSettings['background']) => {
+    setSettings(prev => ({
+      ...prev,
+      background: value
     }));
   };
 
@@ -177,7 +205,7 @@ function App() {
   };
 
   return (
-    <div className="App">
+    <div className={`App background-${settings.background}`}>
       {isActive && particles.map(particle => (
         <div
           key={particle.id}
@@ -195,6 +223,9 @@ function App() {
       <div className={`breathing-circle ${isActive ? 'active' : ''} ${phase}`}>
         <div className="count">{count}</div>
         <div className="phase">{phase}</div>
+        {remainingTime !== null && (
+          <div className="timer">{formatTime(remainingTime)}</div>
+        )}
       </div>
       
       <div className="stopwatch">
@@ -209,6 +240,20 @@ function App() {
       </button>
       {showSettings && (
         <div className="settings-panel">
+          <div className="setting-item">
+            <label>Background:</label>
+            <select 
+              value={settings.background}
+              onChange={(e) => handleBackgroundChange(e.target.value as BreathingSettings['background'])}
+              disabled={isActive}
+            >
+              <option value="default">Default</option>
+              <option value="forest">Forest</option>
+              <option value="ocean">Ocean</option>
+              <option value="mountain">Mountain</option>
+              <option value="space">Space</option>
+            </select>
+          </div>
           <div className="setting-item">
             <label>Inhale Duration (s):</label>
             <input
@@ -250,6 +295,17 @@ function App() {
               max="10"
               value={settings.pauseTime}
               onChange={(e) => handleSettingChange('pauseTime', parseInt(e.target.value))}
+              disabled={isActive}
+            />
+          </div>
+          <div className="setting-item">
+            <label>Session Duration (min):</label>
+            <input
+              type="number"
+              min="1"
+              max="60"
+              value={settings.sessionDuration}
+              onChange={(e) => handleSettingChange('sessionDuration', parseInt(e.target.value))}
               disabled={isActive}
             />
           </div>
